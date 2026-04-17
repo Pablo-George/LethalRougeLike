@@ -1,0 +1,150 @@
+# Implementation Plan: Enhance Modifier Selection UI
+
+**Branch**: `001-enhance-modifier-ui` | **Date**: 2026-04-17 | **Spec**: [spec.md](./spec.md)
+**Input**: Feature specification from `/specs/001-enhance-modifier-ui/spec.md`
+
+**Note**: This template is filled in by the `/speckit.plan` command. See `.specify/templates/plan-template.md` for the execution workflow.
+
+## Summary
+
+Enhance the modifier selection UI for the Lethal Company mod with two main features:
+1. **Pre-game selection screen**: Accessible via Escape key before run starts, supports multi-select with confirmation summary
+2. **In-game overlay**: Press F2 during active gameplay to view currently active modifiers in a non-intrusive overlay
+
+The current UI is a basic single-selection panel. The enhanced UI will provide a polished, intuitive interface with visual design improvements, modifier descriptions, categories, and a read-only in-game overlay.
+
+## Technical Context
+
+**Language/Version**: C# 12 (targeting .NET Standard 2.1)  
+**Primary Dependencies**: Lib.Harmony 2.4.2, UnityEngine.UI, Unity TextMeshPro  
+**Storage**: In-memory (no persistence required per spec assumption)  
+**Testing**: Manual testing required (no automated test framework present)  
+**Target Platform**: Windows (Lethal Company game via BepInEx)  
+**Project Type**: Game mod / Unity UI application  
+**Performance Goals**: UI animations at 60fps, <100ms input responsiveness, overlay opens in <500ms  
+**Constraints**: Must work within Unity's UI system, compatibility with BepInEx 5.x, hotkey F2 must not conflict with game controls  
+**Scale/Scope**: 4-50 modifiers, pre-game selection UI + in-game overlay (max 20% screen coverage)
+
+## Constitution Check
+
+*GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
+
+**Constitution Status**: The project's constitution file (`.specify/memory/constitution.md`) is a template and has not been filled in. No gating checks can be enforced.
+
+**NOTE**: Project lacks defined constitutional principles. If a constitution existed, gates would include:
+- Test-First development requirement
+- Library vs application structure requirements
+- Code quality standards
+
+## Project Structure
+
+### Documentation (this feature)
+
+```text
+specs/001-enhance-modifier-ui/
+├── plan.md              # This file (/speckit.plan command output)
+├── research.md          # Phase 0 output (/speckit.plan command)
+├── data-model.md        # Phase 1 output (/speckit.plan command)
+├── quickstart.md        # Phase 1 output (/speckit.plan command)
+├── contracts/           # Phase 1 output (UI contracts)
+│   └── ui-contracts.md
+└── tasks.md             # Phase 2 output (/speckit.tasks command)
+```
+
+### Source Code (repository root)
+
+```text
+LethalCompanyMod/
+├── src/
+│   ├── UI/
+│   │   ├── ModifierSelectionUI.cs       # Existing - to be enhanced
+│   │   ├── ModifierSelectionPanel.cs     # NEW: Main pre-game panel
+│   │   ├── ModifierCard.cs              # NEW: Individual modifier toggle card
+│   │   ├── ModifierCategory.cs           # NEW: Category grouping container
+│   │   ├── ModifierSummaryModal.cs       # NEW: Confirmation screen
+│   │   ├── ActiveModifiersOverlay.cs     # NEW: In-game overlay (F2)
+│   │   └── Components/
+│   │       ├── ToggleButton.cs
+│   │       ├── StyledButton.cs
+│   │       └── AnimatedPanel.cs
+│   └── Modifiers/
+│       ├── Modifier.cs                   # Existing - reviewed
+│       ├── ModifierRegistry.cs           # Existing - reviewed
+│       └── Category.cs                   # NEW: Category entity
+
+tests/
+├── manual/
+│   └── ui-test-checklist.md
+```
+
+**Structure Decision**: Enhance existing `src/UI/ModifierSelectionUI.cs` with new component-based architecture. Add `ActiveModifiersOverlay.cs` for in-game overlay. No external interface contracts (internal game mod).
+
+## Phase 0: Research
+
+### Identified Unknowns (NEEDS CLARIFICATION)
+
+| Item | Status | Resolution |
+|------|--------|------------|
+| Visual design requirements | **RESOLVED** | Match Lethal Company aesthetic - dark, industrial, horror-humor tone. Semi-transparent backgrounds, industrial typography. |
+| Animation framework | **RESOLVED** | Use Unity Coroutines + custom lightweight tween system (no external dependencies). |
+| Category structure | **RESOLVED** | Based on ModifierEffectType enum: Difficulty (debuffs, red accent), Bonus (buffs, green accent). |
+| Accessibility requirements | **RESOLVED** | Standard Unity UI with keyboard navigation via Selectable. No special a11y requirements per spec. |
+| F2 hotkey conflict | **RESOLVED** | Default F2 is not used by Lethal Company. Configurable via ModConfig. |
+| Overlay timing | **RESOLVED** | Overlay only during active gameplay (StartOfRound.Instance != null), not during menus/loading. |
+
+### Research Summary
+
+**Pre-game Selection Screen**:
+- Uses Unity Canvas with ScreenSpaceOverlay at sortingOrder 999
+- Multi-select via toggle cards with immediate visual feedback
+- Escape key opens panel, confirms with "Start Run" button
+- Summary modal shows selected modifiers before confirming
+
+**In-game Overlay**:
+- Separate MonoBehaviour component for lifecycle management
+- F2 key listener using Input.GetKeyDown (or BepInEx input interceptor)
+- Semi-transparent panel (alpha ~70%) anchored to screen corner
+- Read-only display - no toggle controls
+- Dismisses on F2 again or Escape
+- Does not pause game (non-blocking overlay)
+
+**Alternatives Considered**:
+- DOTween: Rejected - adds dependency, overkill for simple animations
+- Unity UI Toolkit: Rejected - different paradigm, requires Unity 2020+
+- Custom solution: Accepted - matches existing code style, full control
+- Game pause on overlay: Rejected - spec says "must NOT block or pause gameplay"
+
+## Phase 1: Design & Contracts
+
+### Data Model
+
+See [data-model.md](./data-model.md) for full entity definitions.
+
+**Key Entities**:
+1. **ModifierDisplay**: Wraps Modifier with UI-specific display properties (icon, category, display order)
+2. **ModifierCategory**: Groups modifiers by type (Difficulty, Bonus, Custom)
+3. **UIConfiguration**: Centralized UI settings (colors, fonts, animation durations)
+4. **SelectionState**: Current selection state for the UI session
+5. **ActiveModifierOverlay**: In-game overlay UI state (visibility, position, active modifiers list)
+
+### Contracts
+
+See [contracts/ui-contracts.md](./contracts/ui-contracts.md) for interface definitions.
+
+Since this is an internal game mod (no external interfaces), contracts document:
+- Internal component APIs for UI system extensibility
+- Unity component integration points (MonoBehaviour lifecycle)
+- Event/publication patterns for modifier selection changes
+- Overlay hotkey binding contract
+
+## Complexity Tracking
+
+> **Fill ONLY if Constitution Check has violations that must be justified**
+
+| Violation | Why Needed | Simpler Alternative Rejected Because |
+|-----------|------------|-------------------------------------|
+| N/A - No constitution violations | N/A | N/A |
+
+---
+
+**Generated**: 2026-04-17 | **Status**: Phase 1 Complete | **Ready for**: /speckit.tasks
