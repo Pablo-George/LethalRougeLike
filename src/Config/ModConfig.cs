@@ -1,5 +1,6 @@
 using BepInEx;
 using BepInEx.Configuration;
+using UnityEngine;
 
 namespace LethalRogueLike.src.Config;
 
@@ -9,6 +10,7 @@ public static class ModConfig
     public static ConfigEntry<SelectionMethodType> SelectionMethod { get; private set; } = null!;
     public static ConfigEntry<int> SelectionTimeout { get; private set; } = null!;
     public static ConfigEntry<bool> DefaultOnTimeout { get; private set; } = null!;
+    public static ConfigEntry<KeyCode> OverlayHotkey { get; private set; } = null!;
 
     public enum SelectionMethodType
     {
@@ -31,6 +33,10 @@ public static class ModConfig
 
         DefaultOnTimeout = Plugin.Instance.Config.Bind(section, "DefaultOnTimeout", true,
             "Automatically select first option on timeout");
+
+        var gameplaySection = "Gameplay";
+        OverlayHotkey = Plugin.Instance.Config.Bind(gameplaySection, "OverlayHotkey", KeyCode.F2,
+            "Hotkey to view active modifiers during gameplay");
 
         Plugin.Logger.LogInfo("Configuration loaded");
     }

@@ -63,6 +63,10 @@ public class Plugin : BaseUnityPlugin
             var uiGo = new UnityEngine.GameObject("ModifierSelectionUI");
             uiGo.AddComponent<src.UI.ModifierSelectionUI>();
 
+            Logger.LogInfo("[Init] Creating ActiveModifiersOverlay...");
+            var overlayGo = new UnityEngine.GameObject("ActiveModifiersOverlay");
+            overlayGo.AddComponent<src.UI.ActiveModifiersOverlay>();
+
             Logger.LogInfo("[Init] Applying Harmony patches...");
             foreach (var type in System.Reflection.Assembly.GetExecutingAssembly().GetTypes())
             {
