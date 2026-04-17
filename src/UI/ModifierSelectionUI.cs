@@ -36,7 +36,6 @@ public class ModifierSelectionUI : MonoBehaviour
             Plugin.Logger.LogInfo("[UI] Awake: calling CreateUIElements.");
             CreateUIElements();
             Plugin.Logger.LogInfo("[UI] Awake: CreateUIElements done. _buttonsContainer=" + (_buttonsContainer != null ? "OK" : "NULL"));
-            DontDestroyOnLoad(gameObject);
             Plugin.Logger.LogInfo("[UI] ModifierSelectionUI initialized.");
         }
         catch (Exception ex)

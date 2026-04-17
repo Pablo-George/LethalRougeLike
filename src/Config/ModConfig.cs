@@ -11,6 +11,10 @@ public static class ModConfig
     public static ConfigEntry<int> SelectionTimeout { get; private set; } = null!;
     public static ConfigEntry<bool> DefaultOnTimeout { get; private set; } = null!;
     public static ConfigEntry<KeyCode> OverlayHotkey { get; private set; } = null!;
+    public static ConfigEntry<bool> EnableHungerSystem { get; private set; } = null!;
+    public static ConfigEntry<float> HungerDepletionRate { get; private set; } = null!;
+    public static ConfigEntry<float> StarvationDamageRate { get; private set; } = null!;
+    public static ConfigEntry<bool> ShowHungerBar { get; private set; } = null!;
 
     public enum SelectionMethodType
     {
@@ -37,6 +41,19 @@ public static class ModConfig
         var gameplaySection = "Gameplay";
         OverlayHotkey = Plugin.Instance.Config.Bind(gameplaySection, "OverlayHotkey", KeyCode.F2,
             "Hotkey to view active modifiers during gameplay");
+
+        var hungerSection = "Hunger System";
+        EnableHungerSystem = Plugin.Instance.Config.Bind(hungerSection, "EnableHungerSystem", true,
+            "Enable the hunger survival system");
+
+        HungerDepletionRate = Plugin.Instance.Config.Bind(hungerSection, "HungerDepletionRate", 2f,
+            "Hunger points lost per minute");
+
+        StarvationDamageRate = Plugin.Instance.Config.Bind(hungerSection, "StarvationDamageRate", 5f,
+            "Health points lost per second when starving");
+
+        ShowHungerBar = Plugin.Instance.Config.Bind(hungerSection, "ShowHungerBar", true,
+            "Display the hunger bar UI");
 
         Plugin.Logger.LogInfo("Configuration loaded");
     }

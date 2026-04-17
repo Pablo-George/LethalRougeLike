@@ -10,10 +10,12 @@ namespace LethalRogueLike.src.UI;
 public class ActiveModifiersOverlay : MonoBehaviour
 {
     public static ActiveModifiersOverlay Instance { get; private set; } = null!;
+    public static bool NeedsRecreation { get; set; } = false;
 
     private bool _isVisible = false;
     private bool _isGameActive = false;
     private bool _isFading = false;
+    private int _updateFrameCount = 0;
 
     private GameObject _canvasObj = null!;
     private GameObject _panelObj = null!;
@@ -34,6 +36,9 @@ public class ActiveModifiersOverlay : MonoBehaviour
         Plugin.Logger.LogInfo("[Overlay] Awake: starting.");
         try
         {
+            var activeScene = UnityEngine.SceneManagement.SceneManager.GetActiveScene();
+            Plugin.Logger.LogInfo($"[Overlay] Awake: scene='{activeScene.name}', buildIndex={activeScene.buildIndex}, gameObject.name={gameObject.name}, transform.parent={(transform.parent != null ? transform.parent.name : "none")}");
+
             if (Instance != null)
             {
                 Plugin.Logger.LogWarning("[Overlay] Awake: instance already exists! Destroying duplicate.");
@@ -41,10 +46,13 @@ public class ActiveModifiersOverlay : MonoBehaviour
                 return;
             }
             Instance = this;
-            gameObject.SetActive(false);
+
+            Plugin.Logger.LogInfo("[Overlay] Awake: calling CreateOverlayElements...");
             CreateOverlayElements();
-            DontDestroyOnLoad(gameObject);
-            Plugin.Logger.LogInfo("[Overlay] ActiveModifiersOverlay initialized.");
+            Plugin.Logger.LogInfo($"[Overlay] Awake: CreateOverlayElements done. _canvasGroup={((_canvasGroup != null) ? "OK" : "NULL")}, _titleText={((_titleText != null) ? "OK" : "NULL")}, _listText={((_listText != null) ? "OK" : "NULL")}");
+
+            gameObject.SetActive(false);
+            Plugin.Logger.LogInfo("[Overlay] ActiveModifiersOverlay initialized successfully.");
         }
         catch (Exception ex)
         {
@@ -58,6 +66,7 @@ public class ActiveModifiersOverlay : MonoBehaviour
         if (ReferenceEquals(Instance, this))
         {
             Instance = null!;
+            NeedsRecreation = true;
         }
     }
 
@@ -65,35 +74,53 @@ public class ActiveModifiersOverlay : MonoBehaviour
     {
         try
         {
+            _updateFrameCount++;
+            bool logThisFrame = (_updateFrameCount % 300 == 1);
+
+            if (logThisFrame)
+                Plugin.Logger.LogInfo($"[Overlay] Update heartbeat #{_updateFrameCount}: Instance={(Instance != null ? "OK" : "NULL")}, _isVisible={_isVisible}, _isGameActive={_isGameActive}, scene='{UnityEngine.SceneManagement.SceneManager.GetActiveScene().name}'");
+
+            if (Instance == null)
+            {
+                if (logThisFrame) Plugin.Logger.LogWarning("[Overlay] Update: Instance is null — this component is orphaned.");
+                return;
+            }
+
+            bool prevGameActive = _isGameActive;
             _isGameActive = IsGameActive();
+            if (logThisFrame || _isGameActive != prevGameActive)
+                Plugin.Logger.LogInfo($"[Overlay] IsGameActive={_isGameActive} (changed={_isGameActive != prevGameActive})");
 
             if (!_isGameActive && _isVisible)
             {
+                Plugin.Logger.LogInfo("[Overlay] Game no longer active, hiding overlay.");
                 Hide();
                 return;
             }
 
-            if (!_isGameActive)
-            {
-                return;
-            }
+            if (!_isGameActive) return;
 
             HandleFade();
 
-            var hotkey = Config.ModConfig.OverlayHotkey?.Value ?? KeyCode.F2;
+            var hotkey = Config.ModConfig.OverlayHotkey?.Value ?? KeyCode.O;
+            if (logThisFrame)
+                Plugin.Logger.LogInfo($"[Overlay] Polling hotkey={hotkey}");
+
             if (UnityEngine.Input.GetKeyDown(hotkey))
             {
+                Plugin.Logger.LogInfo($"[Overlay] Hotkey {hotkey} pressed — toggling overlay.");
                 Toggle();
             }
 
-            if (_isVisible && UnityEngine.Input.GetKeyDown(KeyCode.Escape))
+            if (_isVisible && (UnityEngine.Input.GetKeyDown(KeyCode.Escape) || UnityEngine.Input.GetKeyDown(KeyCode.JoystickButton1)))
             {
+                Plugin.Logger.LogInfo("[Overlay] Escape/Joystick pressed — hiding overlay.");
                 Hide();
             }
         }
         catch (Exception ex)
         {
-            Plugin.Logger.LogError($"[Overlay] Error in Update: {ex.GetType().Name}: {ex.Message}");
+            Plugin.Logger.LogError($"[Overlay] Error in Update (frame {_updateFrameCount}): {ex.GetType().Name}: {ex.Message}\n{ex.StackTrace}");
         }
     }
 
@@ -126,19 +153,17 @@ public class ActiveModifiersOverlay : MonoBehaviour
             var roundManager = UnityEngine.Object.FindObjectOfType<StartOfRound>();
             if (roundManager == null)
             {
+                Plugin.Logger.LogDebug("[Overlay] IsGameActive: StartOfRound not found — game not active.");
                 return false;
             }
 
-            if (!roundManager.allPlayersDead)
-            {
-                return true;
-            }
-
-            return false;
+            bool result = !roundManager.allPlayersDead;
+            Plugin.Logger.LogDebug($"[Overlay] IsGameActive: StartOfRound found, allPlayersDead={roundManager.allPlayersDead}, returning {result}.");
+            return result;
         }
         catch (System.Exception ex)
         {
-            Plugin.Logger.LogDebug($"[Overlay] IsGameActive check failed: {ex.Message}");
+            Plugin.Logger.LogWarning($"[Overlay] IsGameActive check threw {ex.GetType().Name}: {ex.Message}");
             return false;
         }
     }
@@ -147,6 +172,8 @@ public class ActiveModifiersOverlay : MonoBehaviour
     {
         try
         {
+            if (Instance == null) return;
+
             if (!_isGameActive)
             {
                 _isGameActive = IsGameActive();
@@ -248,6 +275,7 @@ public class ActiveModifiersOverlay : MonoBehaviour
 
     private void CreateOverlayElements()
     {
+        Plugin.Logger.LogInfo("[Overlay] CreateOverlayElements: step 1 — creating canvas.");
         _canvasObj = new GameObject("ActiveModifiersCanvas");
         var canvas = _canvasObj.AddComponent<Canvas>();
         canvas.renderMode = RenderMode.ScreenSpaceOverlay;
@@ -257,7 +285,9 @@ public class ActiveModifiersOverlay : MonoBehaviour
         scaler.referenceResolution = new Vector2(1920, 1080);
         _canvasObj.AddComponent<GraphicRaycaster>();
         _canvasObj.transform.SetParent(gameObject.transform, false);
+        Plugin.Logger.LogInfo("[Overlay] CreateOverlayElements: step 1 done.");
 
+        Plugin.Logger.LogInfo("[Overlay] CreateOverlayElements: step 2 — creating panel.");
         _panelObj = new GameObject("OverlayPanel");
         _panelObj.transform.SetParent(_canvasObj.transform, false);
         var panelImage = _panelObj.AddComponent<Image>();
@@ -268,11 +298,15 @@ public class ActiveModifiersOverlay : MonoBehaviour
         panelRect.pivot = new Vector2(1f, 1f);
         panelRect.anchoredPosition = new Vector2(-10f, -10f);
         panelRect.sizeDelta = new Vector2(280f, 220f);
+        Plugin.Logger.LogInfo("[Overlay] CreateOverlayElements: step 2 done.");
 
+        Plugin.Logger.LogInfo("[Overlay] CreateOverlayElements: step 3 — adding CanvasGroup.");
         _canvasGroup = _panelObj.AddComponent<CanvasGroup>();
         _canvasGroup.alpha = 0f;
         _canvasGroup.blocksRaycasts = false;
+        Plugin.Logger.LogInfo("[Overlay] CreateOverlayElements: step 3 done.");
 
+        Plugin.Logger.LogInfo("[Overlay] CreateOverlayElements: step 4 — creating viewport + ScrollRect.");
         _viewportObj = new GameObject("Viewport");
         _viewportObj.transform.SetParent(_panelObj.transform, false);
         var viewportRect = _viewportObj.AddComponent<RectTransform>();
@@ -282,10 +316,11 @@ public class ActiveModifiersOverlay : MonoBehaviour
         viewportRect.offsetMax = new Vector2(-8f, -28f);
         var viewportImage = _viewportObj.AddComponent<Image>();
         viewportImage.color = Color.clear;
-
         _scrollRect = _viewportObj.AddComponent<ScrollRect>();
         _scrollRect.scrollSensitivity = 20f;
+        Plugin.Logger.LogInfo("[Overlay] CreateOverlayElements: step 4 done.");
 
+        Plugin.Logger.LogInfo("[Overlay] CreateOverlayElements: step 5 — creating content.");
         _contentObj = new GameObject("Content");
         _contentObj.transform.SetParent(_viewportObj.transform, false);
         var contentRect = _contentObj.AddComponent<RectTransform>();
@@ -295,7 +330,9 @@ public class ActiveModifiersOverlay : MonoBehaviour
         contentRect.offsetMax = Vector2.zero;
         _scrollRect.content = contentRect;
         _scrollRect.viewport = viewportRect;
+        Plugin.Logger.LogInfo("[Overlay] CreateOverlayElements: step 5 done.");
 
+        Plugin.Logger.LogInfo("[Overlay] CreateOverlayElements: step 6 — creating list text.");
         _listText = CreateTextObj("ListText", _contentObj.transform, "", 16);
         _listText.alignment = TextAlignmentOptions.TopLeft;
         var listRect = _listText.GetComponent<RectTransform>();
@@ -303,7 +340,9 @@ public class ActiveModifiersOverlay : MonoBehaviour
         listRect.anchorMax = new Vector2(1f, 1f);
         listRect.offsetMin = Vector2.zero;
         listRect.offsetMax = Vector2.zero;
+        Plugin.Logger.LogInfo("[Overlay] CreateOverlayElements: step 6 done.");
 
+        Plugin.Logger.LogInfo("[Overlay] CreateOverlayElements: step 7 — creating title text.");
         var titleObj = new GameObject("Title");
         titleObj.transform.SetParent(_panelObj.transform, false);
         var titleRect = titleObj.AddComponent<RectTransform>();
@@ -317,6 +356,7 @@ public class ActiveModifiersOverlay : MonoBehaviour
         _titleText.fontSize = 18;
         _titleText.color = Color.white;
         _titleText.alignment = TextAlignmentOptions.Center;
+        Plugin.Logger.LogInfo("[Overlay] CreateOverlayElements: step 7 done — all elements created.");
     }
 
     private TextMeshProUGUI CreateTextObj(string name, Transform parent, string text, int fontSize = 18)
