@@ -1,50 +1,37 @@
-# [PROJECT_NAME] Constitution
-<!-- Example: Spec Constitution, TaskFlow Constitution, etc. -->
+# LethalCompanyMod Constitution
 
 ## Core Principles
 
-### [PRINCIPLE_1_NAME]
-<!-- Example: I. Library-First -->
-[PRINCIPLE_1_DESCRIPTION]
-<!-- Example: Every feature starts as a standalone library; Libraries must be self-contained, independently testable, documented; Clear purpose required - no organizational-only libraries -->
+### I. Code Quality Standards
 
-### [PRINCIPLE_2_NAME]
-<!-- Example: II. CLI Interface -->
-[PRINCIPLE_2_DESCRIPTION]
-<!-- Example: Every library exposes functionality via CLI; Text in/out protocol: stdin/args → stdout, errors → stderr; Support JSON + human-readable formats -->
+Code MUST be readable, maintainable, and follow consistent formatting. All code changes MUST pass linting and type checking before merging. Contributors SHOULD refactor code that violates the principle of least surprise—behavior should match reasonable expectations. Complexity MUST be justified with comments explaining why simpler alternatives were rejected.
 
-### [PRINCIPLE_3_NAME]
-<!-- Example: III. Test-First (NON-NEGOTIABLE) -->
-[PRINCIPLE_3_DESCRIPTION]
-<!-- Example: TDD mandatory: Tests written → User approved → Tests fail → Then implement; Red-Green-Refactor cycle strictly enforced -->
+### II. Testing Requirements
 
-### [PRINCIPLE_4_NAME]
-<!-- Example: IV. Integration Testing -->
-[PRINCIPLE_4_DESCRIPTION]
-<!-- Example: Focus areas requiring integration tests: New library contract tests, Contract changes, Inter-service communication, Shared schemas -->
+Every feature MUST have corresponding tests. Unit tests MUST cover core logic paths, and integration tests MUST verify mod compatibility with the base game. Tests MUST be runnable in isolation and MUST NOT depend on external services or game state. Test coverage for critical paths (saving, loading, networking) MUST exceed 80%.
 
-### [PRINCIPLE_5_NAME]
-<!-- Example: V. Observability, VI. Versioning & Breaking Changes, VII. Simplicity -->
-[PRINCIPLE_5_DESCRIPTION]
-<!-- Example: Text I/O ensures debuggability; Structured logging required; Or: MAJOR.MINOR.BUILD format; Or: Start simple, YAGNI principles -->
+### III. Security Practices
 
-## [SECTION_2_NAME]
-<!-- Example: Additional Constraints, Security Requirements, Performance Standards, etc. -->
+Code MUST NOT expose sensitive player data or allow unauthorized game state manipulation. All configuration values MUST be validated at runtime. External dependencies MUST be audited for known vulnerabilities before inclusion. Network communications MUST use appropriate encryption where the base game supports it.
 
-[SECTION_2_CONTENT]
-<!-- Example: Technology stack requirements, compliance standards, deployment policies, etc. -->
+### IV. Maintainability Guidelines
 
-## [SECTION_3_NAME]
-<!-- Example: Development Workflow, Review Process, Quality Gates, etc. -->
+Modules MUST be loosely coupled with clear interfaces. State management MUST be centralized and predictable. Documentation MUST explain the "why" behind non-obvious design decisions. Breaking changes MUST be versioned appropriately and include migration guidance.
 
-[SECTION_3_CONTENT]
-<!-- Example: Code review requirements, testing gates, deployment approval process, etc. -->
+### V. Observability & Debugging
+
+Mod behavior MUST be traceable via logging at appropriate verbosity levels. Error conditions MUST produce actionable log messages with sufficient context. Debug builds MUST expose diagnostic tools; release builds MUST disable debug endpoints.
+
+## Security Requirements
+
+All user inputs MUST be sanitized before processing. File system operations MUST validate paths and use sandbox-appropriate permissions. Configuration loading MUST handle missing/corrupt files gracefully. Memory management MUST avoid leaks—use pooling where allocation frequency is high.
+
+## Development Workflow
+
+Feature development MUST follow the spec-plan-tasks-implement checklist flow. All PRs MUST include tests for new behavior. PRs MUST pass CI gates: lint, typecheck, unit tests, integration tests. Reviews MUST verify principle compliance before approval.
 
 ## Governance
-<!-- Example: Constitution supersedes all other practices; Amendments require documentation, approval, migration plan -->
 
-[GOVERNANCE_RULES]
-<!-- Example: All PRs/reviews must verify compliance; Complexity must be justified; Use [GUIDANCE_FILE] for runtime development guidance -->
+This constitution supersedes informal practices. Amendments require documented rationale and MUST be reviewed before merging. Version bumping follows semantic versioning: MAJOR for breaking changes, MINOR for new principles, PATCH for clarifications. All contributors MUST acknowledge these principles before contributing.
 
-**Version**: [CONSTITUTION_VERSION] | **Ratified**: [RATIFICATION_DATE] | **Last Amended**: [LAST_AMENDED_DATE]
-<!-- Example: Version: 2.1.1 | Ratified: 2025-06-13 | Last Amended: 2025-07-16 -->
+**Version**: 1.0.0 | **Ratified**: 2026-04-16 | **Last Amended**: 2026-04-16
