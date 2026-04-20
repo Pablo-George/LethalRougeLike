@@ -2,6 +2,7 @@ using System;
 using HarmonyLib;
 using LethalRogueLike.src.Config;
 using UnityEngine;
+using UnityEngine.InputSystem;
 using GameNetcodeStuff;
 
 namespace LethalRogueLike.src.Hunger;
@@ -21,7 +22,10 @@ public static class HungerHooks
         {
             try
             {
-                if (!Config.ModConfig.EnableHungerSystem?.Value ?? false)
+                var isTestingMode = Config.ModConfig.TestingMode?.Value ?? false;
+                var isHungerEnabled = Config.ModConfig.EnableHungerSystem?.Value ?? false;
+
+                if (!isHungerEnabled && !isTestingMode)
                 {
                     return;
                 }
@@ -85,7 +89,10 @@ public static class HungerHooks
                     return;
                 }
 
-                if (UnityEngine.Input.GetKeyDown(UnityEngine.KeyCode.F3))
+                var kb = Keyboard.current;
+                if (kb == null) return;
+
+                if (kb[Key.F3].wasPressedThisFrame)
                 {
                     var manager = HungerManager.Instance;
                     if (manager != null)
@@ -101,6 +108,31 @@ public static class HungerHooks
                             Plugin.Logger.LogInfo("[HungerHooks] No food to consume");
                         }
                     }
+                }
+
+                if (kb[Key.F4].wasPressedThisFrame)
+                {
+                    var mgr = HungerManager.Instance;
+                    var ui = HungerUI.Instance;
+                    var isEnabled = Config.ModConfig.EnableHungerSystem?.Value;
+                    var showBar = Config.ModConfig.ShowHungerBar?.Value;
+                    var testing = Config.ModConfig.TestingMode?.Value;
+                    Plugin.Logger.LogInfo("===== [HungerDebug] F4 dump =====");
+                    Plugin.Logger.LogInfo($"  EnableHungerSystem = {isEnabled}");
+                    Plugin.Logger.LogInfo($"  ShowHungerBar      = {showBar}");
+                    Plugin.Logger.LogInfo($"  TestingMode        = {testing}");
+                    Plugin.Logger.LogInfo($"  HungerManager      = {(mgr != null ? "exists" : "NULL")}");
+                    if (mgr != null)
+                    {
+                        var data = mgr.GetHungerData();
+                        Plugin.Logger.LogInfo($"  HungerData         = {(data != null ? $"{data.CurrentHunger:F1}/{data.MaxHunger} ({data.GetHungerPercentage()*100:F0}%)" : "NULL")}");
+                        Plugin.Logger.LogInfo($"  IsStarving         = {mgr.IsStarving()}");
+                    }
+                    Plugin.Logger.LogInfo($"  HungerUI           = {(ui != null ? "exists" : "NULL")}");
+                    var canvasObj = UnityEngine.GameObject.Find("HungerBarCanvas");
+                    Plugin.Logger.LogInfo($"  HungerBarCanvas    = {(canvasObj != null ? $"found, active={canvasObj.activeSelf}" : "NOT FOUND in scene")}");
+                    Plugin.Logger.LogInfo($"  Foods in inventory = {StoredFoods.GetFoods().Count}");
+                    Plugin.Logger.LogInfo("=================================");
                 }
             }
             catch (Exception ex)

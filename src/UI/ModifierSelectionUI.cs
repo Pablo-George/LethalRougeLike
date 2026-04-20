@@ -22,136 +22,58 @@ public class ModifierSelectionUI : MonoBehaviour
 
     private void Awake()
     {
-        Plugin.Logger.LogInfo("[UI] Awake: starting.");
-        try
+        if (Instance != null)
         {
-            if (Instance != null)
-            {
-                Plugin.Logger.LogWarning("[UI] Awake: instance already exists! Destroying duplicate.");
-                Destroy(gameObject);
-                return;
-            }
-            Instance = this;
-            gameObject.SetActive(false);
-            Plugin.Logger.LogInfo("[UI] Awake: calling CreateUIElements.");
-            CreateUIElements();
-            Plugin.Logger.LogInfo("[UI] Awake: CreateUIElements done. _buttonsContainer=" + (_buttonsContainer != null ? "OK" : "NULL"));
-            Plugin.Logger.LogInfo("[UI] ModifierSelectionUI initialized.");
+            Destroy(gameObject);
+            return;
         }
-        catch (Exception ex)
-        {
-            Plugin.Logger.LogError($"[UI] Error in Awake: {ex.GetType().Name}: {ex.Message}\n{ex.StackTrace}");
-        }
+        Instance = this;
+        gameObject.SetActive(false);
+        CreateUIElements();
+        Plugin.Logger.LogInfo("[UI] ModifierSelectionUI initialized.");
     }
 
     private void OnDestroy()
     {
-        Plugin.Logger.LogInfo("[UI] OnDestroy: clearing Instance.");
         if (ReferenceEquals(Instance, this))
-        {
             Instance = null!;
-        }
     }
 
     public void ShowSelection(Modifiers.Modifier[] choices)
     {
         try
         {
-            System.Console.WriteLine("DEBUG: ShowSelection ENTERED");
-            System.Console.WriteLine("DEBUG: choices=" + (choices != null ? choices.Length.ToString() : "NULL"));
-            
-            bool thisIsNull = ReferenceEquals(null, this);
-            System.Console.WriteLine("DEBUG: thisIsNull=" + thisIsNull);
-            
-            bool instIsNull = ReferenceEquals(null, ModifierSelectionUI.Instance);
-            System.Console.WriteLine("DEBUG: instIsNull=" + instIsNull);
-            
-            if (instIsNull)
+            if (choices == null || choices.Length < 2)
             {
-                System.Console.WriteLine("DEBUG: Instance is null, recreating UI...");
-                Plugin.Logger.LogInfo("[UI] ShowSelection: Instance is null, recreating UI...");
-                
-                var newGo = new UnityEngine.GameObject("ModifierSelectionUI");
-                newGo.AddComponent<ModifierSelectionUI>();
-                
-                instIsNull = ReferenceEquals(null, ModifierSelectionUI.Instance);
-                System.Console.WriteLine("DEBUG: After recreation, instIsNull=" + instIsNull);
-                
-                if (instIsNull)
-                {
-                    System.Console.WriteLine("DEBUG: Failed to recreate UI!");
-                    Plugin.Logger.LogError("[UI] ShowSelection: Failed to recreate UI!");
-                    return;
-                }
-            }
-            
-            System.Console.WriteLine("DEBUG: about to access base.gameObject...");
-            bool goIsNull = ReferenceEquals(null, base.gameObject);
-            System.Console.WriteLine("DEBUG: base.gameObject access succeeded, goIsNull=" + goIsNull);
-            
-            Plugin.Logger.LogInfo("[UI] ShowSelection: START. this=" + (thisIsNull ? "NULL" : "OK") + ", Instance=" + (instIsNull ? "NULL" : "OK") + ", gameObject=" + (goIsNull ? "NULL" : "OK"));
-            if (thisIsNull || instIsNull || goIsNull)
-            {
-                Plugin.Logger.LogError("[UI] ShowSelection: this, Instance, or gameObject is null! Cannot show selection.");
+                Plugin.Logger.LogWarning($"[UI] ShowSelection called with insufficient choices: {choices?.Length ?? 0}");
                 return;
             }
 
-            if (choices == null)
+            if (Instance == null)
             {
-                Plugin.Logger.LogWarning("[UI] ShowSelection called with null choices!");
+                Plugin.Logger.LogError("[UI] ShowSelection: Instance is null!");
                 return;
             }
 
-            if (choices.Length < 2)
-            {
-                Plugin.Logger.LogWarning($"[UI] ShowSelection called with insufficient choices: {choices.Length}");
-                return;
-            }
-
-            Plugin.Logger.LogInfo("[UI] ShowSelection: updating choices list.");
             _currentChoices.Clear();
             _currentChoices.AddRange(choices);
             _isVisible = true;
 
-            Plugin.Logger.LogInfo("[UI] ShowSelection: calling UpdateButtonDisplay.");
-            try
-            {
-                UpdateButtonDisplay();
-            }
-            catch (Exception ex)
-            {
-                Plugin.Logger.LogError("[UI] UpdateButtonDisplay threw: " + ex.Message);
-            }
-            Plugin.Logger.LogInfo("[UI] ShowSelection: UpdateButtonDisplay done.");
-
-            Plugin.Logger.LogInfo("[UI] ShowSelection: activating gameObject.");
-            if (gameObject == null)
-            {
-                Plugin.Logger.LogError("[UI] ShowSelection: gameObject became null before SetActive!");
-                return;
-            }
-            System.Console.WriteLine("DEBUG: About to call SetActive(true)");
+            UpdateButtonDisplay();
             gameObject.SetActive(true);
-            System.Console.WriteLine("DEBUG: SetActive(true) called");
-            Plugin.Logger.LogInfo("[UI] ShowSelection: gameObject activated.");
-            Plugin.Logger.LogInfo($"[UI] Showing selection UI with {choices.Length} choices: {string.Join(", ", choices.Select(c => $"{c.Name} ({c.Id})"))}");
+
+            Plugin.Logger.LogInfo($"[UI] Showing selection with {choices.Length} choices: {string.Join(", ", choices.Select(c => $"{c.Name} ({c.Id})"))}");
 
             if (Config.ModConfig.SelectionMethod.Value == Config.ModConfig.SelectionMethodType.RandomAuto)
             {
-                Plugin.Logger.LogInfo("[UI] RandomAuto selection enabled. Auto-selecting...");
                 var randomChoice = choices[UnityEngine.Random.Range(0, choices.Length)];
                 Plugin.Logger.LogInfo($"[UI] Auto-selected: {randomChoice.Name}");
                 SelectModifier(randomChoice.Id);
             }
-            else
-            {
-                Plugin.Logger.LogInfo("[UI] HostOnly selection - waiting for host to choose.");
-            }
         }
         catch (Exception ex)
         {
-            Plugin.Logger.LogError($"[UI] EXCEPTION in ShowSelection: {ex.GetType().Name}: {ex.Message}");
-            Plugin.Logger.LogError($"[UI] Stack: {ex.StackTrace}");
+            Plugin.Logger.LogError($"[UI] EXCEPTION in ShowSelection: {ex.GetType().Name}: {ex.Message}\n{ex.StackTrace}");
             HideSelection();
         }
     }
@@ -160,17 +82,7 @@ public class ModifierSelectionUI : MonoBehaviour
     {
         try
         {
-            if (string.IsNullOrEmpty(modifierId))
-            {
-                Plugin.Logger.LogWarning("[UI] SelectModifier called with null/empty modifierId!");
-                return;
-            }
-
-            if (!_isVisible)
-            {
-                Plugin.Logger.LogWarning($"[UI] SelectModifier called but UI not visible! (modifierId: {modifierId})");
-                return;
-            }
+            if (string.IsNullOrEmpty(modifierId) || !_isVisible) return;
 
             if (Networking.NetworkHandler.Instance != null && !Networking.NetworkHandler.Instance.IsHost)
             {
@@ -178,7 +90,7 @@ public class ModifierSelectionUI : MonoBehaviour
                 return;
             }
 
-            Plugin.Logger.LogInfo($"[UI] Player selecting modifier: {modifierId}");
+            Plugin.Logger.LogInfo($"[UI] Selecting modifier: {modifierId}");
             RunState.Instance.SelectModifier(modifierId);
             HideSelection();
         }
@@ -192,24 +104,14 @@ public class ModifierSelectionUI : MonoBehaviour
     {
         try
         {
-            if (string.IsNullOrEmpty(modifierId))
-            {
-                Plugin.Logger.LogWarning("[UI] VoteForModifier called with null/empty modifierId!");
-                return;
-            }
-
-            if (!_isVisible)
-            {
-                Plugin.Logger.LogWarning($"[UI] VoteForModifier called but UI not visible! (modifierId: {modifierId})");
-                return;
-            }
+            if (string.IsNullOrEmpty(modifierId) || !_isVisible) return;
 
             if (Networking.NetworkHandler.Instance != null)
             {
                 if (Networking.NetworkHandler.Instance.IsHost)
                 {
                     RunState.Instance.RecordVote("host", modifierId);
-                    Plugin.Logger.LogInfo($"[UI] Host recorded vote locally: {modifierId}");
+                    Plugin.Logger.LogInfo($"[UI] Host voted: {modifierId}");
                 }
                 else
                 {
@@ -227,9 +129,7 @@ public class ModifierSelectionUI : MonoBehaviour
             _waitingText.text = "Vote cast! Waiting for others...";
             _waitingText.gameObject.SetActive(true);
             foreach (Transform child in _buttonsContainer)
-            {
                 child.gameObject.SetActive(false);
-            }
         }
         catch (Exception ex)
         {
@@ -241,170 +141,209 @@ public class ModifierSelectionUI : MonoBehaviour
     {
         try
         {
-            if (gameObject == null)
-            {
-                Plugin.Logger.LogWarning("[UI] HideSelection: gameObject is null, skipping.");
-                _isVisible = false;
-                _currentChoices.Clear();
-                return;
-            }
             _isVisible = false;
             _currentChoices.Clear();
-            gameObject.SetActive(false);
-            Plugin.Logger.LogDebug("[UI] Selection UI hidden.");
+            if (gameObject != null)
+                gameObject.SetActive(false);
         }
         catch (Exception ex)
         {
             Plugin.Logger.LogError($"[UI] EXCEPTION in HideSelection: {ex.GetType().Name}: {ex.Message}");
-            Plugin.Logger.LogError($"[UI] Stack: {ex.StackTrace}");
         }
     }
 
     private void CreateUIElements()
     {
-        Plugin.Logger.LogInfo("[UI] CreateUIElements: creating canvas.");
         _canvasObj = new GameObject("ModifierSelectionCanvas");
         var canvas = _canvasObj.AddComponent<Canvas>();
         canvas.renderMode = RenderMode.ScreenSpaceOverlay;
         canvas.sortingOrder = 999;
-        var scaler = _canvasObj.AddComponent<UnityEngine.UI.CanvasScaler>();
+        var scaler = _canvasObj.AddComponent<CanvasScaler>();
         scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
         scaler.referenceResolution = new Vector2(1920, 1080);
         _canvasObj.AddComponent<GraphicRaycaster>();
         _canvasObj.transform.SetParent(gameObject.transform, false);
-        Plugin.Logger.LogInfo("[UI] CreateUIElements: canvas created.");
 
+        // Main panel
         _panelObj = new GameObject("SelectionPanel");
         _panelObj.transform.SetParent(_canvasObj.transform, false);
         var panelImage = _panelObj.AddComponent<Image>();
-        panelImage.color = new Color(0, 0, 0, 0.85f);
+        panelImage.color = UIConfiguration.SelectionBackground;
         var panelRect = _panelObj.GetComponent<RectTransform>();
         panelRect.anchorMin = new Vector2(0.5f, 0.5f);
         panelRect.anchorMax = new Vector2(0.5f, 0.5f);
         panelRect.pivot = new Vector2(0.5f, 0.5f);
         panelRect.anchoredPosition = Vector2.zero;
-        panelRect.sizeDelta = new Vector2(600, 400);
-        Plugin.Logger.LogInfo("[UI] CreateUIElements: panel created.");
+        panelRect.sizeDelta = new Vector2(840, 500);
 
-        var contentObj = new GameObject("Content");
-        contentObj.AddComponent<RectTransform>();
-        contentObj.transform.SetParent(_panelObj.transform, false);
-        var contentRect = contentObj.GetComponent<RectTransform>();
-        contentRect.anchorMin = Vector2.zero;
-        contentRect.anchorMax = Vector2.one;
-        contentRect.offsetMin = new Vector2(20, 20);
-        contentRect.offsetMax = new Vector2(-20, -20);
+        // Header area (top 18%)
+        var headerObj = new GameObject("Header");
+        headerObj.transform.SetParent(_panelObj.transform, false);
+        var headerRect = headerObj.AddComponent<RectTransform>();
+        headerRect.anchorMin = new Vector2(0, 0.82f);
+        headerRect.anchorMax = new Vector2(1, 1f);
+        headerRect.offsetMin = new Vector2(30, 0);
+        headerRect.offsetMax = new Vector2(-30, 0);
 
-        var buttonsContainerObj = new GameObject("ButtonsContainer");
-        buttonsContainerObj.AddComponent<RectTransform>();
-        buttonsContainerObj.transform.SetParent(contentObj.transform, false);
-        var bcRect = buttonsContainerObj.GetComponent<RectTransform>();
-        bcRect.anchorMin = new Vector2(0, 0.1f);
-        bcRect.anchorMax = new Vector2(1, 0.8f);
-        bcRect.offsetMin = Vector2.zero;
-        bcRect.offsetMax = Vector2.zero;
-        _buttonsContainer = buttonsContainerObj.transform;
-        Plugin.Logger.LogInfo("[UI] CreateUIElements: buttonsContainer set.");
+        _titleText = CreateText("Title", headerObj.transform, "MODIFIER SELECTION", 30f, UIConfiguration.SelectionTitleColor, TextAlignmentOptions.Center);
+        _titleText.fontStyle = FontStyles.Bold;
+        _titleText.characterSpacing = 4f;
+        var titleRect = _titleText.GetComponent<RectTransform>();
+        titleRect.anchorMin = new Vector2(0, 0.5f);
+        titleRect.anchorMax = Vector2.one;
+        titleRect.offsetMin = Vector2.zero;
+        titleRect.offsetMax = Vector2.zero;
 
-        _titleText = CreateTextObj("Title", contentObj.transform, new Vector2(0, 160), new Vector2(0, 50), "Select a Modifier");
-        _titleText.fontSize = 36;
-        _titleText.alignment = TextAlignmentOptions.Center;
+        var subtitleText = CreateText("Subtitle", headerObj.transform, "Choose wisely — this modifier affects the entire crew", 15f, UIConfiguration.SelectionSubtitleColor, TextAlignmentOptions.Center);
+        subtitleText.fontStyle = FontStyles.Italic;
+        var subtitleRect = subtitleText.GetComponent<RectTransform>();
+        subtitleRect.anchorMin = Vector2.zero;
+        subtitleRect.anchorMax = new Vector2(1, 0.5f);
+        subtitleRect.offsetMin = Vector2.zero;
+        subtitleRect.offsetMax = Vector2.zero;
 
-        _waitingText = CreateTextObj("WaitingText", contentObj.transform, new Vector2(0, -120), new Vector2(0, 40), "Waiting for host to choose...");
-        _waitingText.fontSize = 24;
-        _waitingText.alignment = TextAlignmentOptions.Center;
-        _waitingText.color = Color.gray;
+        // Cards container (middle 72%)
+        var cardsAreaObj = new GameObject("CardsArea");
+        cardsAreaObj.transform.SetParent(_panelObj.transform, false);
+        var cardsAreaRect = cardsAreaObj.AddComponent<RectTransform>();
+        cardsAreaRect.anchorMin = new Vector2(0, 0.14f);
+        cardsAreaRect.anchorMax = new Vector2(1, 0.82f);
+        cardsAreaRect.offsetMin = new Vector2(24, 0);
+        cardsAreaRect.offsetMax = new Vector2(-24, 0);
+        _buttonsContainer = cardsAreaObj.transform;
+
+        // Waiting / status text (bottom 14%)
+        _waitingText = CreateText("WaitingText", _panelObj.transform, "", 17f, UIConfiguration.SelectionSubtitleColor, TextAlignmentOptions.Center);
+        _waitingText.fontStyle = FontStyles.Italic;
+        var waitingRect = _waitingText.GetComponent<RectTransform>();
+        waitingRect.anchorMin = new Vector2(0, 0);
+        waitingRect.anchorMax = new Vector2(1, 0.14f);
+        waitingRect.offsetMin = new Vector2(30, 0);
+        waitingRect.offsetMax = new Vector2(-30, 0);
         _waitingText.gameObject.SetActive(false);
-        Plugin.Logger.LogInfo("[UI] CreateUIElements: all elements created.");
-    }
-
-    private TextMeshProUGUI CreateTextObj(string name, Transform parent, Vector2 anchorPos, Vector2 sizeDelta, string text)
-    {
-        var textObj = new GameObject(name);
-        textObj.transform.SetParent(parent, false);
-        var textMesh = textObj.AddComponent<TextMeshProUGUI>();
-        textMesh.text = text;
-        textMesh.fontSize = 28;
-        textMesh.color = Color.white;
-        var rect = textObj.GetComponent<RectTransform>();
-        rect.anchorMin = new Vector2(0.5f, 0.5f);
-        rect.anchorMax = new Vector2(0.5f, 0.5f);
-        rect.pivot = new Vector2(0.5f, 0.5f);
-        rect.anchoredPosition = anchorPos;
-        rect.sizeDelta = sizeDelta;
-        return textMesh;
     }
 
     private void UpdateButtonDisplay()
     {
-        Plugin.Logger.LogInfo($"[UI] UpdateButtonDisplay: gameObject={gameObject}, _buttonsContainer={_buttonsContainer}");
-        if (gameObject == null)
-        {
-            Plugin.Logger.LogError("[UI] UpdateButtonDisplay: gameObject is NULL!");
-            return;
-        }
-        if (_buttonsContainer == null)
-        {
-            Plugin.Logger.LogError("[UI] UpdateButtonDisplay: _buttonsContainer is null, aborting!");
-            return;
-        }
+        if (_buttonsContainer == null) return;
 
-        Plugin.Logger.LogInfo("[UI] UpdateButtonDisplay: clearing old buttons.");
         foreach (Transform child in _buttonsContainer)
             Destroy(child.gameObject);
 
-        var buttonHeight = 60f;
-        var spacing = 10f;
-        var totalHeight = _currentChoices.Count * (buttonHeight + spacing) - spacing;
-        var startY = totalHeight / 2;
+        _waitingText.gameObject.SetActive(false);
 
-        Plugin.Logger.LogInfo($"[UI] UpdateButtonDisplay: creating {_currentChoices.Count} buttons.");
+        bool sideBySide = _currentChoices.Count == 2;
         for (int i = 0; i < _currentChoices.Count; i++)
+            CreateModifierCard(_currentChoices[i], i, _currentChoices.Count, sideBySide);
+    }
+
+    private void CreateModifierCard(Modifiers.Modifier modifier, int index, int total, bool sideBySide)
+    {
+        var accentColor = modifier.IsDebuff ? UIConfiguration.SelectionDebuffAccent : UIConfiguration.SelectionBuffAccent;
+
+        // Card background
+        var cardObj = new GameObject($"Card_{modifier.Id}");
+        cardObj.transform.SetParent(_buttonsContainer, false);
+        var cardImage = cardObj.AddComponent<Image>();
+        cardImage.color = UIConfiguration.SelectionCardBackground;
+        var cardRect = cardObj.GetComponent<RectTransform>();
+
+        if (sideBySide)
         {
-            var modifier = _currentChoices[i];
-            Plugin.Logger.LogInfo($"[UI] UpdateButtonDisplay: step 1 - new GameObject for button {i} ({modifier.Name}).");
-            var buttonObj = new GameObject($"Button_{modifier.Id}");
-
-            Plugin.Logger.LogInfo($"[UI] UpdateButtonDisplay: step 2 - SetParent for button {i}.");
-            buttonObj.transform.SetParent(_buttonsContainer, false);
-
-            Plugin.Logger.LogInfo($"[UI] UpdateButtonDisplay: step 3 - AddComponent<Image> for button {i}.");
-            var image = buttonObj.AddComponent<Image>();
-            image.color = new Color(0.2f, 0.2f, 0.2f, 1f);
-
-            Plugin.Logger.LogInfo($"[UI] UpdateButtonDisplay: step 4 - RectTransform for button {i}.");
-            var rect = buttonObj.GetComponent<RectTransform>();
-            rect.anchorMin = new Vector2(0, 1);
-            rect.anchorMax = new Vector2(1, 1);
-            var yPos = startY - i * (buttonHeight + spacing) - buttonHeight / 2;
-            rect.anchoredPosition = new Vector2(0, yPos);
-            rect.sizeDelta = new Vector2(0, buttonHeight);
-
-            Plugin.Logger.LogInfo($"[UI] UpdateButtonDisplay: step 5 - TextMeshProUGUI for button {i}.");
-            var txtObj = new GameObject("Text");
-            txtObj.transform.SetParent(buttonObj.transform, false);
-            var txt = txtObj.AddComponent<TextMeshProUGUI>();
-            txt.text = modifier.Name;
-            txt.fontSize = 24;
-            txt.color = Color.white;
-            txt.alignment = TextAlignmentOptions.Center;
-            var txtRect = txtObj.GetComponent<RectTransform>();
-            txtRect.anchorMin = Vector2.zero;
-            txtRect.anchorMax = Vector2.one;
-            txtRect.offsetMin = Vector2.zero;
-            txtRect.offsetMax = Vector2.zero;
-
-            Plugin.Logger.LogInfo($"[UI] UpdateButtonDisplay: step 6 - AddComponent<Button> for button {i}.");
-            var button = buttonObj.AddComponent<Button>();
-            var colors = button.colors;
-            colors.normalColor = new Color(0.2f, 0.2f, 0.2f, 1f);
-            colors.highlightedColor = new Color(0.3f, 0.3f, 0.3f, 1f);
-            colors.pressedColor = new Color(0.4f, 0.4f, 0.4f, 1f);
-            button.colors = colors;
-            button.onClick.AddListener(() => VoteForModifier(modifier.Id));
-
-            Plugin.Logger.LogInfo($"[UI] UpdateButtonDisplay: button {i} done.");
+            float gap = 0.04f;
+            cardRect.anchorMin = new Vector2(index == 0 ? 0f : 0.5f + gap / 2f, 0f);
+            cardRect.anchorMax = new Vector2(index == 0 ? 0.5f - gap / 2f : 1f, 1f);
         }
-        Plugin.Logger.LogInfo("[UI] UpdateButtonDisplay: all buttons created.");
+        else
+        {
+            float cardH = 1f / total;
+            float padding = 0.015f;
+            cardRect.anchorMin = new Vector2(0f, 1f - (index + 1) * cardH + padding);
+            cardRect.anchorMax = new Vector2(1f, 1f - index * cardH - padding);
+        }
+        cardRect.offsetMin = Vector2.zero;
+        cardRect.offsetMax = Vector2.zero;
+
+        // Colored accent bar along the top edge
+        var accentBar = new GameObject("AccentBar");
+        accentBar.transform.SetParent(cardObj.transform, false);
+        var accentImage = accentBar.AddComponent<Image>();
+        accentImage.color = accentColor;
+        var accentRect = accentBar.GetComponent<RectTransform>();
+        accentRect.anchorMin = new Vector2(0, 1);
+        accentRect.anchorMax = new Vector2(1, 1);
+        accentRect.pivot = new Vector2(0.5f, 1);
+        accentRect.anchoredPosition = Vector2.zero;
+        accentRect.sizeDelta = new Vector2(0, 5);
+
+        // Content area with padding
+        var contentObj = new GameObject("Content");
+        contentObj.transform.SetParent(cardObj.transform, false);
+        var contentRect = contentObj.AddComponent<RectTransform>();
+        contentRect.anchorMin = Vector2.zero;
+        contentRect.anchorMax = Vector2.one;
+        contentRect.offsetMin = new Vector2(18, 14);
+        contentRect.offsetMax = new Vector2(-18, -14);
+
+        // BUFF / DEBUFF badge
+        var badge = CreateText("Badge", contentObj.transform, modifier.IsDebuff ? "DEBUFF" : "BUFF", 12f, accentColor, TextAlignmentOptions.Left);
+        badge.fontStyle = FontStyles.Bold;
+        badge.characterSpacing = 3f;
+        SetAnchors(badge, 0, 0.82f, 1, 1f);
+
+        // Modifier name
+        var nameText = CreateText("Name", contentObj.transform, modifier.Name, 24f, Color.white, TextAlignmentOptions.Left);
+        nameText.fontStyle = FontStyles.Bold;
+        SetAnchors(nameText, 0, 0.54f, 1, 0.82f);
+
+        // Description
+        var descText = CreateText("Description", contentObj.transform, modifier.Description, 14f, UIConfiguration.SelectionSubtitleColor, TextAlignmentOptions.Left);
+        descText.enableWordWrapping = true;
+        descText.overflowMode = TextOverflowModes.Truncate;
+        SetAnchors(descText, 0, 0.20f, 1, 0.54f);
+
+        // Severity dots
+        int filled = Mathf.Clamp(Mathf.RoundToInt(Mathf.Clamp01(modifier.Severity) * 5), 1, 5);
+        string accentHex = ColorUtility.ToHtmlStringRGB(accentColor);
+        string dots = $"<color=#{accentHex}>{new string('●', filled)}</color><color=#444444>{new string('●', 5 - filled)}</color>  <color=#555555>intensity</color>";
+        var sevText = CreateText("Severity", contentObj.transform, dots, 14f, Color.white, TextAlignmentOptions.Left);
+        SetAnchors(sevText, 0, 0f, 1, 0.20f);
+
+        // Button interaction
+        var button = cardObj.AddComponent<Button>();
+        var colors = button.colors;
+        colors.normalColor = UIConfiguration.SelectionCardBackground;
+        colors.highlightedColor = UIConfiguration.SelectionCardHover;
+        colors.pressedColor = UIConfiguration.SelectionCardPressed;
+        colors.selectedColor = UIConfiguration.SelectionCardBackground;
+        colors.fadeDuration = 0.08f;
+        button.colors = colors;
+        button.onClick.AddListener(() => VoteForModifier(modifier.Id));
+    }
+
+    private static TextMeshProUGUI CreateText(string name, Transform parent, string text, float fontSize, Color color, TextAlignmentOptions alignment)
+    {
+        var obj = new GameObject(name);
+        obj.transform.SetParent(parent, false);
+        var tmp = obj.AddComponent<TextMeshProUGUI>();
+        tmp.text = text;
+        tmp.fontSize = fontSize;
+        tmp.color = color;
+        tmp.alignment = alignment;
+        var rect = obj.GetComponent<RectTransform>();
+        rect.anchorMin = Vector2.zero;
+        rect.anchorMax = Vector2.one;
+        rect.offsetMin = Vector2.zero;
+        rect.offsetMax = Vector2.zero;
+        return tmp;
+    }
+
+    private static void SetAnchors(TextMeshProUGUI tmp, float xMin, float yMin, float xMax, float yMax)
+    {
+        var rect = tmp.GetComponent<RectTransform>();
+        rect.anchorMin = new Vector2(xMin, yMin);
+        rect.anchorMax = new Vector2(xMax, yMax);
+        rect.offsetMin = Vector2.zero;
+        rect.offsetMax = Vector2.zero;
     }
 }

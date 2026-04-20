@@ -20,7 +20,8 @@ public enum ModifierEffectType
     ScrapValueModifier,
     StaminaModifier,
     EnemySpawnModifier,
-    ScrapQuantityModifier
+    ScrapQuantityModifier,
+    HungerModifier
 }
 
 public interface IModifierEffect

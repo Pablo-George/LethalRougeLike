@@ -66,7 +66,10 @@ public class HungerManager : MonoBehaviour
 
     private void Update()
     {
-        if (!Config.ModConfig.EnableHungerSystem?.Value ?? false)
+        var isTestingMode = Config.ModConfig.TestingMode?.Value ?? false;
+        var isHungerEnabled = Config.ModConfig.EnableHungerSystem?.Value ?? false;
+
+        if (!isHungerEnabled && !isTestingMode)
         {
             return;
         }

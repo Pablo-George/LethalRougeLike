@@ -23,6 +23,9 @@ public class HungerUI : MonoBehaviour
     private float _barHeight = 20f;
     private float _padding = 10f;
 
+    private float _debugLogTimer = 0f;
+    private const float DebugLogInterval = 5f;
+
     private void Awake()
     {
         try
@@ -54,26 +57,40 @@ public class HungerUI : MonoBehaviour
 
     private void Update()
     {
-        if (!Config.ModConfig.EnableHungerSystem?.Value ?? false)
-        {
-            Hide();
-            return;
-        }
-
-        if (!Config.ModConfig.ShowHungerBar?.Value ?? true)
-        {
-            Hide();
-            return;
-        }
-
+        var isTestingMode = Config.ModConfig.TestingMode?.Value ?? false;
+        var isHungerEnabled = Config.ModConfig.EnableHungerSystem?.Value ?? false;
+        var showBar = Config.ModConfig.ShowHungerBar?.Value ?? true;
         var hungerManager = HungerManager.Instance;
+        var hungerData = hungerManager?.GetHungerData();
+
+        _debugLogTimer += Time.deltaTime;
+        if (_debugLogTimer >= DebugLogInterval)
+        {
+            _debugLogTimer = 0f;
+            Plugin.Logger.LogInfo(
+                $"[HungerUI] State — enabled={isHungerEnabled} testing={isTestingMode} showBar={showBar} " +
+                $"manager={(hungerManager != null ? "OK" : "NULL")} data={(hungerData != null ? "OK" : "NULL")} " +
+                $"canvas={((_canvasObj != null) ? _canvasObj.activeSelf.ToString() : "NULL")}");
+        }
+
+        if (!isHungerEnabled && !isTestingMode)
+        {
+            Hide();
+            return;
+        }
+
+        if (!showBar)
+        {
+            Hide();
+            return;
+        }
+
         if (hungerManager == null)
         {
             Hide();
             return;
         }
 
-        var hungerData = hungerManager.GetHungerData();
         if (hungerData == null)
         {
             Hide();
@@ -91,7 +108,7 @@ public class HungerUI : MonoBehaviour
             percentage = Mathf.Clamp01(percentage);
             if (_fillBarRect != null)
             {
-                _fillBarRect.sizeDelta = new Vector2(_barWidth * percentage, _barHeight);
+                _fillBarRect.sizeDelta = new Vector2(_barWidth * percentage, 0f);
             }
 
             if (_fillImage != null)
@@ -158,7 +175,7 @@ public class HungerUI : MonoBehaviour
         containerRect.anchorMax = new Vector2(1f, 1f);
         containerRect.pivot = new Vector2(1f, 1f);
         containerRect.anchoredPosition = new Vector2(-_padding, -_padding);
-        containerRect.sizeDelta = Vector2.zero;
+        containerRect.sizeDelta = new Vector2(_barWidth, _barHeight);
 
         _backgroundBar = new GameObject("BackgroundBar");
         _backgroundBar.transform.SetParent(_barContainer.transform, false);
@@ -167,7 +184,7 @@ public class HungerUI : MonoBehaviour
         bgRect.anchorMax = Vector2.one;
         bgRect.pivot = new Vector2(0.5f, 0.5f);
         bgRect.anchoredPosition = Vector2.zero;
-        bgRect.sizeDelta = new Vector2(_barWidth, _barHeight);
+        bgRect.sizeDelta = Vector2.zero;
         var bgImage = _backgroundBar.AddComponent<Image>();
         bgImage.color = new Color(0.2f, 0.2f, 0.2f, 0.8f);
 
@@ -178,18 +195,18 @@ public class HungerUI : MonoBehaviour
         _fillBarRect.anchorMax = new Vector2(0f, 1f);
         _fillBarRect.pivot = new Vector2(0f, 0.5f);
         _fillBarRect.anchoredPosition = Vector2.zero;
-        _fillBarRect.sizeDelta = new Vector2(_barWidth, _barHeight);
+        _fillBarRect.sizeDelta = new Vector2(_barWidth, 0f);
         _fillImage = _fillBar.AddComponent<Image>();
         _fillImage.color = new Color(0.2f, 0.8f, 0.2f);
 
         var textObj = new GameObject("PercentageText");
         textObj.transform.SetParent(_barContainer.transform, false);
         var textRect = textObj.AddComponent<RectTransform>();
-        textRect.anchorMin = new Vector2(0.5f, 0.5f);
-        textRect.anchorMax = new Vector2(0.5f, 0.5f);
-        textRect.pivot = new Vector2(0.5f, 0.5f);
-        textRect.anchoredPosition = new Vector2(-_barWidth / 2f, -_barHeight - 5f);
-        textRect.sizeDelta = new Vector2(_barWidth, 20f);
+        textRect.anchorMin = new Vector2(0f, 0f);
+        textRect.anchorMax = new Vector2(1f, 0f);
+        textRect.pivot = new Vector2(0.5f, 1f);
+        textRect.anchoredPosition = new Vector2(0f, -5f);
+        textRect.sizeDelta = new Vector2(0f, 20f);
         _percentageText = textObj.AddComponent<TextMeshProUGUI>();
         _percentageText.text = "100%";
         _percentageText.fontSize = 14;

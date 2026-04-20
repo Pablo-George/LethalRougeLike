@@ -3,6 +3,7 @@ using System.Linq;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.InputSystem;
 using TMPro;
 
 namespace LethalRogueLike.src.UI;
@@ -102,19 +103,25 @@ public class ActiveModifiersOverlay : MonoBehaviour
 
             HandleFade();
 
-            var hotkey = Config.ModConfig.OverlayHotkey?.Value ?? KeyCode.O;
-            if (logThisFrame)
-                Plugin.Logger.LogInfo($"[Overlay] Polling hotkey={hotkey}");
+            var kb = Keyboard.current;
+            if (kb == null) return;
 
-            if (UnityEngine.Input.GetKeyDown(hotkey))
+            var hotkeyCode = Config.ModConfig.OverlayHotkey?.Value ?? KeyCode.O;
+            if (logThisFrame)
+                Plugin.Logger.LogInfo($"[Overlay] Polling hotkey={hotkeyCode}");
+
+            if (System.Enum.TryParse<Key>(hotkeyCode.ToString(), out var hotkeyKey) && hotkeyKey != Key.None)
             {
-                Plugin.Logger.LogInfo($"[Overlay] Hotkey {hotkey} pressed — toggling overlay.");
-                Toggle();
+                if (kb[hotkeyKey].wasPressedThisFrame)
+                {
+                    Plugin.Logger.LogInfo($"[Overlay] Hotkey {hotkeyCode} pressed — toggling overlay.");
+                    Toggle();
+                }
             }
 
-            if (_isVisible && (UnityEngine.Input.GetKeyDown(KeyCode.Escape) || UnityEngine.Input.GetKeyDown(KeyCode.JoystickButton1)))
+            if (_isVisible && kb[Key.Escape].wasPressedThisFrame)
             {
-                Plugin.Logger.LogInfo("[Overlay] Escape/Joystick pressed — hiding overlay.");
+                Plugin.Logger.LogInfo("[Overlay] Escape pressed — hiding overlay.");
                 Hide();
             }
         }

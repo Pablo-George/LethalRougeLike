@@ -124,6 +124,37 @@ public class Plugin : BaseUnityPlugin
         {
             Logger.LogInfo("[SceneLoad] ModifierSelectionUI.Instance already exists — skipping.");
         }
+
+        var isTestingMode = src.Config.ModConfig.TestingMode?.Value ?? false;
+        var isHungerEnabled = src.Config.ModConfig.EnableHungerSystem?.Value ?? false;
+        if (isTestingMode || isHungerEnabled)
+        {
+            var manager = src.Hunger.HungerManager.Instance;
+            if (manager != null)
+            {
+                manager.Initialize();
+                Logger.LogInfo("[SceneLoad] HungerManager initialized.");
+            }
+
+            if (src.Hunger.HungerUI.Instance == null)
+            {
+                Logger.LogInfo("[SceneLoad] Creating HungerUI.");
+                try
+                {
+                    var hungerUiGo = new UnityEngine.GameObject("HungerUI");
+                    hungerUiGo.AddComponent<src.Hunger.HungerUI>();
+                    Logger.LogInfo("[SceneLoad] HungerUI created.");
+                }
+                catch (Exception ex)
+                {
+                    Logger.LogError($"[SceneLoad] FAILED to create HungerUI: {ex.GetType().Name}: {ex.Message}\n{ex.StackTrace}");
+                }
+            }
+            else
+            {
+                Logger.LogInfo("[SceneLoad] HungerUI.Instance already exists — skipping.");
+            }
+        }
     }
 
     private void OnDestroy()

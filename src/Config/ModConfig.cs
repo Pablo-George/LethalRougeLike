@@ -15,6 +15,8 @@ public static class ModConfig
     public static ConfigEntry<float> HungerDepletionRate { get; private set; } = null!;
     public static ConfigEntry<float> StarvationDamageRate { get; private set; } = null!;
     public static ConfigEntry<bool> ShowHungerBar { get; private set; } = null!;
+    public static ConfigEntry<bool> TestingMode { get; private set; } = null!;
+    public static ConfigEntry<bool> ForceHungerModifier { get; private set; } = null!;
 
     public enum SelectionMethodType
     {
@@ -43,8 +45,8 @@ public static class ModConfig
             "Hotkey to view active modifiers during gameplay");
 
         var hungerSection = "Hunger System";
-        EnableHungerSystem = Plugin.Instance.Config.Bind(hungerSection, "EnableHungerSystem", true,
-            "Enable the hunger survival system");
+        EnableHungerSystem = Plugin.Instance.Config.Bind(hungerSection, "EnableHungerSystem", false,
+            "Enable the hunger survival system (feature flag - set to true to enable)");
 
         HungerDepletionRate = Plugin.Instance.Config.Bind(hungerSection, "HungerDepletionRate", 2f,
             "Hunger points lost per minute");
@@ -54,6 +56,13 @@ public static class ModConfig
 
         ShowHungerBar = Plugin.Instance.Config.Bind(hungerSection, "ShowHungerBar", true,
             "Display the hunger bar UI");
+
+        var testingSection = "Testing";
+        TestingMode = Plugin.Instance.Config.Bind(testingSection, "TestingMode", false,
+            "Enable testing mode for development");
+
+        ForceHungerModifier = Plugin.Instance.Config.Bind(testingSection, "ForceHungerModifier", false,
+            "Force hunger modifier to appear in first two options for testing");
 
         Plugin.Logger.LogInfo("Configuration loaded");
     }

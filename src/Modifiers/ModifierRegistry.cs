@@ -73,7 +73,7 @@ public class ModifierRegistry
                 Effect = new Effects.EnemySpawnEffect()
             });
 
-            RegisterModifier(new Modifier
+RegisterModifier(new Modifier
             {
                 Id = "increased_scrap_qty",
                 Name = "Scrap Rush",
@@ -84,7 +84,18 @@ public class ModifierRegistry
                 Effect = new Effects.ScrapQuantityEffect()
             });
 
-            Plugin.Logger.LogInfo($"[ModifierRegistry] Successfully registered {_modifiers.Count} modifiers.");
+            RegisterModifier(new Modifier
+            {
+                Id = "hunger",
+                Name = "Hunger",
+                Description = "You must eat food to survive. Buy food at the terminal.",
+                IsDebuff = true,
+                EffectType = ModifierEffectType.HungerModifier,
+                Severity = 1f,
+                Effect = new Effects.HungerEffect()
+            });
+
+        Plugin.Logger.LogInfo($"[ModifierRegistry] Successfully registered {_modifiers.Count} modifiers.");
         }
         catch (Exception ex)
         {
@@ -148,7 +159,22 @@ public class ModifierRegistry
                 return all;
             }
 
-            var shuffled = all.OrderBy(_ => _random.Next()).Take(count).ToList();
+            var hungerMod = _modifiers.TryGetValue("hunger", out var hm) ? hm : null;
+            var forceHunger = Config.ModConfig.ForceHungerModifier?.Value ?? false;
+
+            List<Modifier> shuffled;
+            if (forceHunger && hungerMod != null && count > 0)
+            {
+                var others = all.Where(m => m.Id != "hunger").OrderBy(_ => _random.Next()).Take(count - 1).ToList();
+                others.Insert(0, hungerMod);
+                shuffled = others;
+                Plugin.Logger.LogDebug($"[ModifierRegistry] Testing mode: Forced hunger modifier into first choice.");
+            }
+            else
+            {
+                shuffled = all.OrderBy(_ => _random.Next()).Take(count).ToList();
+            }
+
             Plugin.Logger.LogDebug($"[ModifierRegistry] Selected {shuffled.Count} random modifiers from {all.Count} total.");
             return shuffled;
         }

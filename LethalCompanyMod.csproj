@@ -58,6 +58,10 @@
       <HintPath>$(GamePath)/Lethal Company_Data/Managed/UnityEngine.InputLegacyModule.dll</HintPath>
       <Private>false</Private>
     </Reference>
+    <Reference Include="Unity.InputSystem">
+      <HintPath>$(GamePath)/Lethal Company_Data/Managed/Unity.InputSystem.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
   </ItemGroup>
 
 
