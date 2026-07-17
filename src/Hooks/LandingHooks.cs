@@ -1,6 +1,7 @@
 using System;
 using System.Linq;
 using HarmonyLib;
+using UnityEngine;
 
 namespace LethalRogueLike.src.Hooks;
 
@@ -56,35 +57,8 @@ public static class LandingHooks
 
                 if (RunState.Instance.IsSelectionPending)
                 {
-                    System.Console.WriteLine("DEBUG: IsSelectionPending is TRUE, about to show UI");
                     UpdateClientCount();
-                    Plugin.Logger.LogDebug("[LandingHooks] Modifier selection pending after landing, showing UI...");
-                    
-                    var ui = UI.ModifierSelectionUI.Instance;
-                    System.Console.WriteLine("DEBUG: ModifierSelectionUI.Instance=" + (ui != null ? "OK" : "NULL"));
-                    
-                    if (ui == null)
-                    {
-                        System.Console.WriteLine("DEBUG: Creating new UI on demand...");
-                        Plugin.Logger.LogInfo("[LandingHooks] Creating new ModifierSelectionUI on demand...");
-                        var newGo = new UnityEngine.GameObject("ModifierSelectionUI");
-                        newGo.AddComponent<UI.ModifierSelectionUI>();
-                        ui = UI.ModifierSelectionUI.Instance;
-                        System.Console.WriteLine("DEBUG: After creation, Instance=" + (ui != null ? "OK" : "NULL"));
-                    }
-                    
-                    if (ui != null)
-                    {
-                        ui.ShowSelection(RunState.Instance.PendingChoices.ToArray());
-                    }
-                    else
-                    {
-                        Plugin.Logger.LogError("[LandingHooks] Failed to create Instance!");
-                    }
-                }
-                else
-                {
-                    System.Console.WriteLine("DEBUG: IsSelectionPending is FALSE");
+                    Plugin.Logger.LogInfo("[LandingHooks] Modifier selection pending - use 'mods' command in terminal to select");
                 }
             }
             catch (Exception ex)
@@ -98,13 +72,19 @@ public static class LandingHooks
     public class StartOfRound_EndOfRound_Patch
     {
         [HarmonyPrefix]
-        public static void Prefix()
+        public static bool Prefix()
         {
             try
             {
                 if (!Config.ModConfig.EnableMod.Value)
                 {
-                    return;
+                    return true;
+                }
+
+                if (RunState.Instance.IsSelectionPending)
+                {
+                    Plugin.Logger.LogWarning("[LandingHooks] Cannot leave - modifier selection pending!");
+                    return false;
                 }
 
                 Plugin.Logger.LogDebug("[LandingHooks] EndOfRound triggered.");
@@ -113,6 +93,57 @@ public static class LandingHooks
             catch (Exception ex)
             {
                 Plugin.Logger.LogError($"[LandingHooks] Error in EndOfRound patch: {ex.Message}");
+            }
+            return true;
+        }
+    }
+
+    [HarmonyPatch(typeof(StartOfRound), "Update")]
+    public class StartOfRound_Update_Patch
+    {
+        [HarmonyPostfix]
+        public static void Postfix(StartOfRound __instance)
+        {
+            try
+            {
+                if (!Config.ModConfig.EnableMod.Value)
+                {
+                    return;
+                }
+
+                if (RunState.Instance.IsSelectionPending)
+                {
+                    var shipLeverField = typeof(StartOfRound).GetField("lever", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                    if (shipLeverField != null)
+                    {
+                        var lever = shipLeverField.GetValue(__instance);
+                        if (lever != null)
+                        {
+                            var leverType = lever.GetType();
+                            var interactTriggerField = leverType.GetField("hoveringOverInfo", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                            if (interactTriggerField != null)
+                            {
+                                var interactTrigger = interactTriggerField.GetValue(lever);
+                                if (interactTrigger != null)
+                                {
+                                    var descField = interactTrigger.GetType().GetField("descriptionText", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
+                                    if (descField != null)
+                                    {
+                                        var currentDesc = descField.GetValue(interactTrigger) as string;
+                                        if (!string.IsNullOrEmpty(currentDesc) && !currentDesc.Contains("Select a modifier"))
+                                        {
+                                            descField.SetValue(interactTrigger, currentDesc + " - SELECT MODIFIER FIRST!");
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            catch
+            {
+                // Silently ignore - hover text update
             }
         }
     }

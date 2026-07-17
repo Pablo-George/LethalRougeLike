@@ -44,6 +44,10 @@ public class Plugin : BaseUnityPlugin
             Logger.LogInfo("[Init] Registering built-in modifiers...");
             src.Modifiers.ModifierRegistry.Instance.RegisterBuiltInModifiers();
 
+            Logger.LogInfo("[Init] Initializing modifier settings...");
+            var modifierIds = src.Modifiers.ModifierRegistry.Instance.GetAllModifiers().Select(m => m.Id);
+            src.Config.ModConfig.InitializeModifierSettings(modifierIds);
+
             Logger.LogInfo("[Init] Initializing LandingHooks...");
             src.Hooks.LandingHooks.Initialize();
 
@@ -62,6 +66,9 @@ public class Plugin : BaseUnityPlugin
             Logger.LogInfo("[Init] Creating ModifierSelectionUI...");
             var uiGo = new UnityEngine.GameObject("ModifierSelectionUI");
             uiGo.AddComponent<src.UI.ModifierSelectionUI>();
+
+            Logger.LogInfo("[Init] Initializing TerminalCommandHandler...");
+            src.UI.TerminalCommandHandler.Initialize();
 
             Logger.LogInfo("[Init] Applying Harmony patches...");
             foreach (var type in System.Reflection.Assembly.GetExecutingAssembly().GetTypes())
